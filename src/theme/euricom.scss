@@ -1,0 +1,49 @@
+/**
+ * Euricom theme for reveal.js.
+ *
+ * By Wannes Gennar, https://elixus.be
+ */
+
+
+// Default mixins and settings -----------------
+@import "reveal.js/css/theme/template/mixins";
+@import "reveal.js/css/theme/template/settings";
+// ---------------------------------------------
+
+$black: #000000;
+$petrol: #062A30;
+$white: #FFFFFF;
+$brightGreen: #00FF00;
+$blueLightAccent: #A3E0F2;
+$blueAccent: #52ABC7;
+$blueDarkAccent: #387d91;
+
+// Override theme settings (see ../template/settings.scss)
+$backgroundColor: $petrol;
+
+$mainColor: #fff;
+$headingColor: #fff;
+
+$mainFontSize: 42px;
+$mainFont: 'Poppins', Helvetica, sans-serif;
+$headingFont: 'Poppins', Helvetica, sans-serif;
+$headingTextShadow: none;
+$headingLetterSpacing: normal;
+$headingTextTransform: uppercase;
+$headingFontWeight: 600;
+$linkColor: $blueDarkAccent;
+$linkColorHover: $blueAccent;
+$selectionBackgroundColor: $blueLightAccent;
+
+$heading1Size: 2.5em;
+$heading2Size: 1.6em;
+$heading3Size: 1.3em;
+$heading4Size: 1.0em;
+
+// Change text colors against light slide backgrounds
+@include light-bg-text-color(#222);
+
+
+// Theme template ------------------------------
+@import "reveal.js/css/theme/template/theme";
+// ---------------------------------------------

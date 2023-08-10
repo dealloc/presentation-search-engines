@@ -1,0 +1,13 @@
+@import 'reveal.js/css/reveal.scss';
+@import 'theme/euricom.scss';
+
+.euricom {
+	color: $brightGreen;
+}
+
+#branding-logo {
+	position: absolute;
+	bottom: 2rem;
+	left: 2rem;
+	width: 300px;
+}
