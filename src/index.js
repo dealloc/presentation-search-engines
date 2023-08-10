@@ -11,8 +11,10 @@ deck.on('slidechanged', event => {
 	const hasLightBackground = event.currentSlide.dataset.backgroundColor === 'white';
 
 	if (hasLightBackground) {
+		console.debug('Switching to light background');
 		branding.src = 'assets/euricom-logo-light.png';
 	} else {
+		console.debug('Switching to dark background');
 		branding.src = 'assets/euricom-logo.png';
 	}
 });
