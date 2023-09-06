@@ -107,10 +107,11 @@
 
 					<section data-background-color="white">
 						<img src="assets/levenshtein.svg" />
-						<ul class="fragment">
-							<li><b>k</b>itten → <b>s</b>itten</li>
-							<li>sitt<b>e</b>n  → sitt<b>i</b>n</li>
-							<li>sittin → sittin<b>g</b></li>
+						<ul>
+							<li class="fragment">kitten -> sitting</li>
+							<li class="fragment"><b class="euricom">k</b>itten → <b class="euricom">s</b>itten</li>
+							<li class="fragment">sitt<b class="euricom">e</b>n  → sitt<b class="euricom">i</b>n</li>
+							<li class="fragment">sittin → sittin<b class="euricom">g</b></li>
 						</ul>
 					</section>
 
@@ -253,6 +254,7 @@
 						</ul>
 					</section>
 					<section>
+						<p>Index</p>
 						<span class="euricom">Parsing</span>
 						<span class="fragment">→ <span class="euricom">Tokenization</span></span>
 						<span class="fragment">→ <span class="euricom">Analysis</span></span>
@@ -311,7 +313,7 @@
 						<span class="fragment">→ <span class="euricom">Execution</span></span>
 					</section>
 					<section>
-						<pre><code class="language-csharp" data-line-numbers="|5"><script type="text/template">public record JobPostingsQuery
+						<pre><code class="language-csharp" data-line-numbers="|5|7-8"><script type="text/template">public record JobPostingsQuery
 {
 	public required int Page { get; set; }
 	public required int PageSize { get; set; } = 10;
@@ -325,21 +327,6 @@
 	public double Radius { get; set; } = 20;
 	// ...
 }</script></code></pre>
-					</section>
-					<section>
-						<pre><code class="language-csharp"><script type="text/template">[HttpGet, ResponseCache(NoStore = true)]
-[ProducesResponseType(StatusCodes.Status200OK, Type = typeof(JobPostingsResult))]
-[ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
-public ActionResult<JobPostingsResult> Index([FromQuery] JobPostingsQuery query)
-{
-	if (ModelState.IsValid is false)
-		return BadRequest(ModelState);
-
-	return Ok(_jobPostingService.ExecuteQuery(query));
-}</script></code></pre>
-					</section>
-					<section data-background-color="white">
-						<img src="assets/sc-agilitas-filters.png" />
 					</section>
 					<section>
 						<pre><code class="language-csharp" data-line-numbers="|4|11"><script type="text/template">private void MapDomainQueryToExamineQuery(JobPostingsQuery domainQuery, IQuery query, MapperContext context)
@@ -356,15 +343,13 @@ public ActionResult<JobPostingsResult> Index([FromQuery] JobPostingsQuery query)
 }</script></code></pre>
 					</section>
 					<section>
-						<pre><code class="language-csharp" data-line-numbers="|9"><script type="text/template">private void BuildKeywordQuery(IQuery query, string? keyword)
+						<pre><code class="language-csharp" data-line-numbers="|7"><script type="text/template">private void BuildKeywordQuery(IQuery query, string? keyword)
 {
 	if (string.IsNullOrWhiteSpace(keyword))
 		return;
 
 	query.Group(group =>
-		group.ManagedQuery(keyword, _keywordFields)
-		.Or()
-		.GroupedOr(_keywordWildcardFields, keyword.MultipleCharacterWildcard())
+		group.GroupedOr(_keywordWildcardFields, keyword.MultipleCharacterWildcard())
 	);
 }</script></code></pre>
 					</section>
@@ -384,11 +369,20 @@ public ActionResult<JobPostingsResult> Index([FromQuery] JobPostingsQuery query)
 					<section data-background-color="white">
 						<img src="assets/sc-agilitas-query-url.png" />
 					</section>
+					<section data-background-color="white">
+						<img src="assets/sc-agilitas-filters.png" />
+					</section>
 				</section>
 
 				<!-- advanced stuff -->
 				<section>
-					
+
+					<section>
+						<span class="euricom">hidden</span> features!
+					</section>
+					<section>
+						<span class="euricom">Recommendation</span> engine
+					</section>
 					<section>
 						<pre><code class="language-csharp" data-line-numbers="|4-9|11"><script type="text/template">public IEnumerable<JobPosting> Similar(JobPosting posting, int amount = 10)
 {
@@ -405,6 +399,9 @@ public ActionResult<JobPostingsResult> Index([FromQuery] JobPostingsQuery query)
 
 	return ScoreDocsToJobPostings(documents, 0, amount, paginated: true, includeViewCounts: false);
 }</script></code></pre>
+					</section>
+					<section>
+						<span class="euricom">Explain</span> query resultaten
 					</section>
 					<section data-background-color="white">
 						<img src="assets/sc-query-analyzer.png" />
@@ -446,6 +443,9 @@ public ActionResult<JobPostingsResult> Index([FromQuery] JobPostingsQuery query)
 				</section>
 
 				<section>
+					<section>
+						Voordelen voor <span class="euricom">stakeholders</span>
+					</section>
 					<section>
 						<span class="euricom">Uitbreiden</span> van queries
 					</section>
