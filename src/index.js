@@ -1,9 +1,12 @@
 import Reveal from 'reveal.js';
+import RevealNotes from 'reveal.js/plugin/notes/notes';
+import Highlight from 'reveal.js/plugin/highlight/highlight';
 
 const branding = document.getElementById('branding-logo');
 const deck = new Reveal({
-	plugins: [],
-	hash: true
+	plugins: [RevealNotes, Highlight],
+	hash: true,
+	totalTime: 2100
 });
 
 // ensure the Euricom logo properly transforms to remain readable.

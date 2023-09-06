@@ -9,7 +9,6 @@
     "build": "NODE_ENV=production gulp build"
   },
   "keywords": [
-    "re:factor",
     "conference",
     "presentation",
     "reveal.js"

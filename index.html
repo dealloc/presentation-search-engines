@@ -4,8 +4,9 @@
 		<meta charset="UTF-8">
 		<meta http-equiv="X-UA-Compatible" content="IE=edge">
 		<meta name="viewport" content="width=device-width, initial-scale=1.0">
-		<title>Lucene.NET</title>
+		<title>Search</title>
 		<link rel="stylesheet" href="index.css" />
+		<link rel="stylesheet" href="monokai.css" />
 		<link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet">
 		<script src="index.js" defer></script>
 	</head>
@@ -15,24 +16,463 @@
 				<!-- introduction -->
 				<section>
 					<section data-opening="true" data-background-color="white">
-						Lucene.NET
+						Search
 					</section>
 					<section>
 						<p>Wannes Gennar</p>
-						<p class="fragment" data-autoslide="1000">
+						<p>
 							Consultant @ <span class="euricom">Euricom</span>
 						</p>
 					</section>
 				</section>
 
+				<!-- migration @ agilitas -->
 				<section data-background-color="white">
-					<img class="w-1/4" src="assets/agilitas-logo.png" />
+					<section data-background-color="white">
+						<img class="w-1/4" src="assets/agilitas-logo.png" />
+					</section>
+
+					<section data-background-color="white">
+						<div class="flex items-center">
+							<img class="w-1/4" src="assets/php.png" />
+							<img class="w-1/4 fragment" src="assets/dotnet-core.png" />
+						</div>
+					</section>
 				</section>
 
+				<!-- narrowing to the search bit -->
 				<section data-background-color="white">
-					<img src="assets/this-is-fine.gif" />
+					<section data-background-color="white">
+						<img src="assets/agilitas-sc-homepage.png" />
+					</section>
+					<section data-background-color="white">
+						<img src="assets/agilitas-sc-search.png" />
+					</section>
 				</section>
 
+				<section>
+					<section>
+						Hoe bouwen we het <span class="euricom">zoek</span> systeem
+					</section>
+
+					<section>
+						<img src="assets/sql-server.png" />
+					</section>
+
+					<section>
+						<span class="fragment euricom">zeer </span>complex
+					</section>
+
+					<section data-background-color="white">
+						<img src="assets/agilitas-sc-search.png" />
+					</section>
+
+					<section data-background-color="white">
+						<img src="assets/agilitas-sc-search-verkoper.png" />
+					</section>
+				</section>
+
+				<section>
+					<section data-notes="Execution time: 0ms">
+						<pre><code class="language-sql"><script type="text/template">SELECT *
+	FROM [AGV_jobpostings]
+	WHERE [TitleInformation] LIKE '%verkoper%'</script></code></pre>
+					</section>
+
+					<section data-notes="Execution time: 2s">
+						<pre><code class="language-sql"><script type="text/template">SELECT *
+	FROM [Vacancies].[dbo].[AGV_jobpostings]
+	WHERE [TitleInformation] LIKE '%verkoper%'
+	OR [MetaTags] LIKE '%verkoper%'
+	OR [IntroInformation] LIKE '%verkoper%'
+	OR [JobLocation] LIKE '%verkoper%'
+	OR [RequirementsInformation] LIKE '%verkoper%'
+	OR [OfferInformation] LIKE '%verkoper%'
+	OR [CompanyInformation] LIKE '%verkoper%'
+	OR [PublicationId] = 'verkoper'</script></code></pre>
+					</section>
+
+					<section data-notes="Execution time: 2s">
+						<pre><code class="language-sql"><script type="text/template">SELECT *
+	FROM [Vacancies].[dbo].[AGV_jobpostings]
+	WHERE [TitleInformation] LIKE '%verkper%'
+	OR [MetaTags] LIKE '%verkper%'
+	OR [IntroInformation] LIKE '%verkper%'
+	OR [JobLocation] LIKE '%verkper%'
+	OR [RequirementsInformation] LIKE '%verkper%'
+	OR [OfferInformation] LIKE '%verkper%'
+	OR [CompanyInformation] LIKE '%verkper%'
+	OR [PublicationId] = 'verkper'</script></code></pre>
+					</section>
+
+					<section data-background-color="white">
+						<img src="assets/levenshtein.svg" />
+						<ul class="fragment">
+							<li><b>k</b>itten → <b>s</b>itten</li>
+							<li>sitt<b>e</b>n  → sitt<b>i</b>n</li>
+							<li>sittin → sittin<b>g</b></li>
+						</ul>
+					</section>
+
+					<section>
+						<pre><code class="language-sql" data-line-numbers="|22-30|63-73|83-89"><script type="text/template">CREATE FUNCTION [dbo].[Levenshtein](
+		@s nvarchar(4000)
+		, @t nvarchar(4000)
+		, @max int
+	)
+	RETURNS int
+	WITH SCHEMABINDING
+	AS
+	BEGIN
+		DECLARE @distance int = 0 -- return variable
+				, @v0 nvarchar(4000)-- running scratchpad for storing computed distances
+				, @start int = 1      -- index (1 based) of first non-matching character between the two string
+				, @i int, @j int      -- loop counters: i for s string and j for t string
+				, @diag int          -- distance in cell diagonally above and left if we were using an m by n matrix
+				, @left int          -- distance in cell to the left if we were using an m by n matrix
+				, @sChar nchar      -- character at index i from s string
+				, @thisJ int          -- temporary storage of @j to allow SELECT combining
+				, @jOffset int      -- offset used to calculate starting value for j loop
+				, @jEnd int          -- ending value for j loop (stopping point for processing a column)
+				-- get input string lengths including any trailing spaces (which SQL Server would otherwise ignore)
+				, @sLen int = datalength(@s) / datalength(left(left(@s, 1) + '.', 1))    -- length of smaller string
+				, @tLen int = datalength(@t) / datalength(left(left(@t, 1) + '.', 1))    -- length of larger string
+				, @lenDiff int      -- difference in length between the two strings
+		-- if strings of different lengths, ensure shorter string is in s. This can result in a little
+		-- faster speed by spending more time spinning just the inner loop during the main processing.
+		IF (@sLen > @tLen) BEGIN
+			SELECT @v0 = @s, @i = @sLen -- temporarily use v0 for swap
+			SELECT @s = @t, @sLen = @tLen
+			SELECT @t = @v0, @tLen = @i
+		END
+		SELECT @max = ISNULL(@max, @tLen)
+				, @lenDiff = @tLen - @sLen
+		IF @lenDiff > @max RETURN NULL
+
+		-- suffix common to both strings can be ignored
+		WHILE(@sLen > 0 AND SUBSTRING(@s, @sLen, 1) = SUBSTRING(@t, @tLen, 1))
+			SELECT @sLen = @sLen - 1, @tLen = @tLen - 1
+
+		IF (@sLen = 0) RETURN @tLen
+
+		-- prefix common to both strings can be ignored
+		WHILE (@start < @sLen AND SUBSTRING(@s, @start, 1) = SUBSTRING(@t, @start, 1)) 
+			SELECT @start = @start + 1
+		IF (@start > 1) BEGIN
+			SELECT @sLen = @sLen - (@start - 1)
+					, @tLen = @tLen - (@start - 1)
+
+			-- if all of shorter string matches prefix and/or suffix of longer string, then
+			-- edit distance is just the delete of additional characters present in longer string
+			IF (@sLen <= 0) RETURN @tLen
+
+			SELECT @s = SUBSTRING(@s, @start, @sLen)
+					, @t = SUBSTRING(@t, @start, @tLen)
+		END
+
+		-- initialize v0 array of distances
+		SELECT @v0 = '', @j = 1
+		WHILE (@j <= @tLen) BEGIN
+			SELECT @v0 = @v0 + NCHAR(CASE WHEN @j > @max THEN @max ELSE @j END)
+			SELECT @j = @j + 1
+		END
+
+		SELECT @jOffset = @max - @lenDiff
+				, @i = 1
+		WHILE (@i <= @sLen) BEGIN
+			SELECT @distance = @i
+					, @diag = @i - 1
+					, @sChar = SUBSTRING(@s, @i, 1)
+					-- no need to look beyond window of upper left diagonal (@i) + @max cells
+					-- and the lower right diagonal (@i - @lenDiff) - @max cells
+					, @j = CASE WHEN @i <= @jOffset THEN 1 ELSE @i - @jOffset END
+					, @jEnd = CASE WHEN @i + @max >= @tLen THEN @tLen ELSE @i + @max END
+			WHILE (@j <= @jEnd) BEGIN
+				-- at this point, @distance holds the previous value (the cell above if we were using an m by n matrix)
+				SELECT @left = UNICODE(SUBSTRING(@v0, @j, 1))
+						, @thisJ = @j
+				SELECT @distance = 
+					CASE WHEN (@sChar = SUBSTRING(@t, @j, 1)) THEN @diag                    --match, no change
+							ELSE 1 + CASE WHEN @diag < @left AND @diag < @distance THEN @diag    --substitution
+										WHEN @left < @distance THEN @left                    -- insertion
+										ELSE @distance                                        -- deletion
+									END    END
+				SELECT @v0 = STUFF(@v0, @thisJ, 1, NCHAR(@distance))
+						, @diag = @left
+						, @j = case when (@distance > @max) AND (@thisJ = @i + @lenDiff) then @jEnd + 2 else @thisJ + 1 end
+			END
+			SELECT @i = CASE WHEN @j > @jEnd + 1 THEN @sLen + 1 ELSE @i + 1 END
+		END
+		RETURN CASE WHEN @distance <= @max THEN @distance ELSE NULL END
+	END</script></code></pre>
+						<a style="font-size: 20px" href="https://stackoverflow.com/questions/560709/levenshtein-distance-in-t-sql">source</a>
+					</section>
+
+					<section>
+						<pre>
+							<code class="language-sql">
+								<script type="text/template">SELECT *
+	FROM [Vacancies].[dbo].[AGV_jobpostings]
+	WHERE (dbo.Levenshtein([TitleInformation], 'verkoper', 5) <= 3 AND [TitleInformation] IS NOT NULL)
+		OR (dbo.Levenshtein([MetaTags], 'verkoper', 5) <= 3 AND [MetaTags] IS NOT NULL)
+		OR (dbo.Levenshtein([IntroInformation], 'verkoper', 5) <= 3 AND [IntroInformation] IS NOT NULL)
+		OR (dbo.Levenshtein([JobLocation], 'verkoper', 5) <= 3 AND [JobLocation] IS NOT NULL)
+		OR (dbo.Levenshtein([RequirementsInformation], 'verkoper', 5) <= 3 AND [RequirementsInformation] IS NOT NULL)
+		OR (dbo.Levenshtein([OfferInformation], 'verkoper', 5) <= 3 AND [OfferInformation] IS NOT NULL)
+		OR (dbo.Levenshtein([CompanyInformation], 'verkoper', 5) <= 3 AND [CompanyInformation] IS NOT NULL)
+		OR [PublicationId] = 'verkoper'</script>
+							</code>
+						</pre>
+					</section>
+
+					<section>
+						<p>
+							<span class="euricom">complexere</span> queries
+						</p>
+						<ul>
+							<li class="fragment">Meerdere keywords</li>
+							<li class="fragment">geografische queries</li>
+							<li class="fragment">facets</li>
+							<li class="fragment">boosting</li>
+						</ul>
+					</section>
+				</section>
+
+				<section>
+					<section data-background-color="white">
+						<img src="assets/apache-lucene.png" />
+					</section>
+					<section>
+						Lucene.NET is a high performance <span class="euricom">search</span> library for .NET
+					</section>
+					<section>
+						<ul>
+							<li>Apache Solr</li>
+							<li>ElasticSearch</li>
+							<li>MongoDB</li>
+						</ul>
+					</section>
+					<section>
+						<span class="euricom">Parsing</span>
+						<span class="fragment">→ <span class="euricom">Tokenization</span></span>
+						<span class="fragment">→ <span class="euricom">Analysis</span></span>
+					</section>
+					<section>
+						<span class="euricom">language</span> aware
+					</section>
+					<section data-auto-animate>
+						Als winkelmedewerker ben jij het gezicht van de traiteurafdeling<span>!</span>
+					</section>
+					<section data-auto-animate>
+						Als winkelmedewerker ben jij het gezicht van de traiteurafdeling<span class="euricom">!</span>
+					</section>
+					<section data-auto-animate>
+						<span class="euricom">Als</span> winkelmedewerker <span class="euricom">ben jij het</span> gezicht <span class="euricom">van de</span> traiteurafdeling
+					</section>
+					<section data-auto-animate>
+						winkelmedewerker gezicht traiteurafdeling
+					</section>
+					<section>
+						<p>TF-IDF</p>
+						<table class="fragment">
+							<thead>
+								<th>Word</th>
+								<th>DF</th>
+								<th>IDF</th>
+							</thead>
+							<tbody>
+								<tr class="fragment highlight-current-green">
+									<td>gezicht</td>
+									<td>1</td>
+									<td>1.57</td>
+								</tr>
+								<tr>
+									<td>traiteurafdeling</td>
+									<td>2</td>
+									<td>1.27</td>
+								</tr>
+								<tr class="fragment highlight-current-green">
+									<td>winkelmedewerker</td>
+									<td>4</td>
+									<td>0.967</td>
+								</tr>
+							</tbody>
+						</table>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						show me some <span class="euricom">code</span>
+					</section>
+					<section>
+						<span class="euricom">Model Binding</span>
+						<span class="fragment">→ <span class="euricom">Mapping</span></span>
+						<span class="fragment">→ <span class="euricom">Execution</span></span>
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|5"><script type="text/template">public record JobPostingsQuery
+{
+	public required int Page { get; set; }
+	public required int PageSize { get; set; } = 10;
+	public string? Keyword { get; set; }
+	public string? Language { get; set; }
+	[Range(-90.0, 90.0), HiddenInput]
+	public double Latitude { get; set; }
+	[Range(-90.0, 90.0), HiddenInput]
+	public double Longitude { get; set; }
+	[Range(0, 200), HiddenInput]
+	public double Radius { get; set; } = 20;
+	// ...
+}</script></code></pre>
+					</section>
+					<section>
+						<pre><code class="language-csharp"><script type="text/template">[HttpGet, ResponseCache(NoStore = true)]
+[ProducesResponseType(StatusCodes.Status200OK, Type = typeof(JobPostingsResult))]
+[ProducesResponseType(StatusCodes.Status400BadRequest, Type = typeof(ProblemDetails))]
+public ActionResult<JobPostingsResult> Index([FromQuery] JobPostingsQuery query)
+{
+	if (ModelState.IsValid is false)
+		return BadRequest(ModelState);
+
+	return Ok(_jobPostingService.ExecuteQuery(query));
+}</script></code></pre>
+					</section>
+					<section data-background-color="white">
+						<img src="assets/sc-agilitas-filters.png" />
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|4|11"><script type="text/template">private void MapDomainQueryToExamineQuery(JobPostingsQuery domainQuery, IQuery query, MapperContext context)
+{
+	BuildLanguageQuery(query, domainQuery.Language);
+	BuildKeywordQuery(query, domainQuery.Keyword);
+	BuildMetaTagsQuery(query, domainQuery.MetaTags);
+	BuildFacetsQuery(query, domainQuery);
+	BuildPostalCodesQuery(query, domainQuery.PostalCodes);
+	BuildCompanyIdsQuery(query, domainQuery.Companies);
+	BuildMediumsQuery(query, domainQuery.Mediums);
+	BuildPublicationStartEndQuery(query, domainQuery.Since);
+	BuildLocationQuery(query, domainQuery.Latitude, domainQuery.Longitude, domainQuery.Radius);
+}</script></code></pre>
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|9"><script type="text/template">private void BuildKeywordQuery(IQuery query, string? keyword)
+{
+	if (string.IsNullOrWhiteSpace(keyword))
+		return;
+
+	query.Group(group =>
+		group.ManagedQuery(keyword, _keywordFields)
+		.Or()
+		.GroupedOr(_keywordWildcardFields, keyword.MultipleCharacterWildcard())
+	);
+}</script></code></pre>
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|7-8|10"><script type="text/template">private void BuildLocationQuery(IQuery query, double latitude, double longitude, double radius)
+{
+	if (latitude is 0 || longitude is 0 || radius is 0)
+		return;
+
+	radius = Math.Max(radius, 10.0);
+	var shape = Context.MakeCircle(x: longitude, y: latitude, DistanceUtils.Dist2Degrees(radius, DistanceUtils.EarthMeanRadiusKilometers));
+	var args = new SpatialArgs(SpatialOperation.Intersects, shape);
+	var spatial = Strategy.Value.MakeQuery(args);
+	query.LuceneQuery(spatial, BooleanOperation.And);
+}</script></code></pre>
+					</section>
+					<section data-background-color="white">
+						<img src="assets/sc-agilitas-query-url.png" />
+					</section>
+				</section>
+
+				<!-- advanced stuff -->
+				<section>
+					
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|4-9|11"><script type="text/template">public IEnumerable<JobPosting> Similar(JobPosting posting, int amount = 10)
+{
+	var reader = new StringReader(posting.TitleInformation ?? string.Empty);
+	var mlt = new MoreLikeThis(_searcher.IndexReader)
+	{
+		Analyzer = new StandardAnalyzer(LuceneVersion.LUCENE_48),
+		MinTermFreq = 0,
+		FieldNames = new[] { nameof(JobPosting.TitleInformation), nameof(JobPosting.MetaTags) }
+	};
+
+	var query = mlt.Like(reader, nameof(JobPosting.TitleInformation));
+	var documents = _searcher.Search(query, amount).ScoreDocs;
+
+	return ScoreDocsToJobPostings(documents, 0, amount, paginated: true, includeViewCounts: false);
+}</script></code></pre>
+					</section>
+					<section data-background-color="white">
+						<img src="assets/sc-query-analyzer.png" />
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|6-9|15"><script type="text/template">public Dictionary<string, string> Explain(JobPostingsQuery domainQuery)
+{
+	domainQuery.PageSize = Math.Max(domainQuery.PageSize, 10);
+	var amount = Math.Abs(Math.Max(domainQuery.Page + 1, 1) * domainQuery.PageSize);
+
+	var query = _mapper.Map<IQuery>(domainQuery);
+	var raw = _mapper.Map<Query>(query);
+
+	var results = _searcher.Search(raw, Math.Max(amount, 1));
+	return results.ScoreDocs
+		.Skip(domainQuery.PageSize * domainQuery.Page)
+		.Take(domainQuery.PageSize)
+		.ToDictionary(
+			doc => _searcher.IndexReader.Document(doc.Doc).Get(nameof(JobPosting.PublicationId)),
+			doc => _searcher.Explain(raw, doc.Doc).ToHtml()
+		);
+}</script></code></pre>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<span class="euricom">Boosten</span> van fields
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|3|6"><script type="text/template">private void AddFieldBoostsToIndex(Document document)
+{
+	document.GetField<TextField>("PublicationId").Boost = 10.0f;
+	document.GetField<TextField>("TitleInformation").Boost = 5.0f;
+	// ...
+	document.GetField<TextField>("CompanyInformation").Boost = 1.0f;
+}</script></code></pre>
+					</section>
+				</section>
+
+				<section>
+					<section>
+						<span class="euricom">Uitbreiden</span> van queries
+					</section>
+					<section>
+						Gemakkelijk te <span class="euricom">tunen</span>
+					</section>
+				</section>
+
+				<section>
+					<p>
+						Geen <span class="euricom">databases</span> meer?
+					</p>
+					<ul>
+						<li class="fragment">Full text search</li>
+						<li class="fragment">Fuzzy/mistake tolerant</li>
+						<li class="fragment">Facets</li>
+						<li class="fragment">Boosting</li>
+					</ul>
+				</section>
+
+				<section data-autoslide="1000">
+					<span class="euricom">Thank</span> you
+					<p class="fragment">👏👏</p>
+				</section>
+				<section>
+					Questions<span class="euricom">?</span>
+				</section>
 			</div>
 		</div>
 

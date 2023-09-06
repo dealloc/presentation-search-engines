@@ -16,3 +16,9 @@
 img.w-1\/4 {
 	max-width: 25vw;
 }
+
+.flex.items-center {
+	display: flex;
+	align-items: center;
+	gap: 4rem;
+}

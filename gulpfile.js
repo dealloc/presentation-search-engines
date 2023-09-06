@@ -7,7 +7,7 @@ const imagemin = require('gulp-imagemin');
 // parameters
 let minify = (process.env.NODE_ENV === 'production');
 
-const styles = () => src('src/index.scss')
+const styles = () => src(['src/index.scss', 'node_modules/reveal.js/plugin/highlight/monokai.css'])
 	.pipe(sass({
 		outputStyle: minify ? 'compressed': undefined,
 		includePaths: ['node_modules']
