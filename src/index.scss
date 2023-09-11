@@ -22,3 +22,7 @@ img.w-1\/4 {
 	align-items: center;
 	gap: 4rem;
 }
+
+.reveal pre code.hljs {
+	overflow-x: hidden;
+}

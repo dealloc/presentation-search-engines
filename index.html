@@ -106,9 +106,10 @@
 					</section>
 
 					<section data-background-color="white">
+						<p>Levenshtein</p>
 						<img src="assets/levenshtein.svg" />
 						<ul>
-							<li class="fragment">kitten -> sitting</li>
+							<li class="fragment">kitten → sitting</li>
 							<li class="fragment"><b class="euricom">k</b>itten → <b class="euricom">s</b>itten</li>
 							<li class="fragment">sitt<b class="euricom">e</b>n  → sitt<b class="euricom">i</b>n</li>
 							<li class="fragment">sittin → sittin<b class="euricom">g</b></li>
@@ -214,13 +215,13 @@
 							<code class="language-sql">
 								<script type="text/template">SELECT *
 	FROM [Vacancies].[dbo].[AGV_jobpostings]
-	WHERE (dbo.Levenshtein([TitleInformation], 'verkoper', 5) <= 3 AND [TitleInformation] IS NOT NULL)
-		OR (dbo.Levenshtein([MetaTags], 'verkoper', 5) <= 3 AND [MetaTags] IS NOT NULL)
-		OR (dbo.Levenshtein([IntroInformation], 'verkoper', 5) <= 3 AND [IntroInformation] IS NOT NULL)
-		OR (dbo.Levenshtein([JobLocation], 'verkoper', 5) <= 3 AND [JobLocation] IS NOT NULL)
-		OR (dbo.Levenshtein([RequirementsInformation], 'verkoper', 5) <= 3 AND [RequirementsInformation] IS NOT NULL)
-		OR (dbo.Levenshtein([OfferInformation], 'verkoper', 5) <= 3 AND [OfferInformation] IS NOT NULL)
-		OR (dbo.Levenshtein([CompanyInformation], 'verkoper', 5) <= 3 AND [CompanyInformation] IS NOT NULL)
+	WHERE (dbo.Levenshtein([TitleInformation], 'verkoper', 5) <= 3)
+		OR (dbo.Levenshtein([MetaTags], 'verkoper', 5) <= 3)
+		OR (dbo.Levenshtein([IntroInformation], 'verkoper', 5) <= 3)
+		OR (dbo.Levenshtein([JobLocation], 'verkoper', 5) <= 3)
+		OR (dbo.Levenshtein([RequirementsInformation], 'verkoper', 5) <= 3)
+		OR (dbo.Levenshtein([OfferInformation], 'verkoper', 5) <= 3)
+		OR (dbo.Levenshtein([CompanyInformation], 'verkoper', 5) <= 3)
 		OR [PublicationId] = 'verkoper'</script>
 							</code>
 						</pre>
@@ -228,13 +229,13 @@
 
 					<section>
 						<p>
-							<span class="euricom">complexere</span> queries
+							<span class="euricom">Complexere</span> queries
 						</p>
 						<ul>
 							<li class="fragment">Meerdere keywords</li>
-							<li class="fragment">geografische queries</li>
-							<li class="fragment">facets</li>
-							<li class="fragment">boosting</li>
+							<li class="fragment">Geografische queries</li>
+							<li class="fragment">Facets</li>
+							<li class="fragment">Boosting</li>
 						</ul>
 					</section>
 				</section>
@@ -372,11 +373,62 @@
 					<section data-background-color="white">
 						<img src="assets/sc-agilitas-filters.png" />
 					</section>
+					<section data-auto-animate>
+						<p>Infrastructuur</p>
+						<p class="fragment">
+							<span class="fragment euricom">Database</span>
+							<span class="fragment">→ <span class="euricom">Documents</span></span>
+							<span class="fragment">→ <span class="euricom">Lucene</span></span>
+						</p>
+					</section>
+					<section data-auto-animate>
+						<p>Infrastructuur</p>
+						<p>
+							<span class="euricom">???</span>
+							<span>→ Documents</span>
+							<span>→ Lucene</span>
+						</p>
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|3-6|8|11"><script type="text/template">protected override void PopulateIndexes(IReadOnlyList<IIndex> indexes)
+{
+	var vacancies = _repository
+		.GetAllSync()
+		.Where(ShouldIndex)
+		.ToArray();
+
+	var values = _valueSetBuilder.GetValueSets(vacancies);
+	foreach (var index in indexes)
+	{
+		index.IndexItems(values);
+	}
+}</script></code></pre>
+					</section>
+					<section>
+						<pre><code class="language-csharp" data-line-numbers="|5-11|13-17"><script type="text/template">public IEnumerable<ValueSet> GetValueSets(params JobPosting[] postings)
+{
+	foreach (var posting in postings)
+	{
+		var values = new Dictionary<string, IEnumerable<object>>
+		{
+			{ nameof(JobPosting.Id), new object[] { posting.Id } },
+			{ nameof(JobPosting.PublicationId), new object[] { posting.PublicationId } },
+			{ nameof(JobPosting.Medium), SplitMediums(posting.Medium) },
+			// ...
+		};
+
+		yield return new ValueSet(
+			posting.Id.ToString(),
+			Constants.INDEX_CATEGORY_JOBPOSTINGS,
+			values
+		);
+	}
+}</script></code></pre>
+					</section>
 				</section>
 
 				<!-- advanced stuff -->
 				<section>
-
 					<section>
 						<span class="euricom">hidden</span> features!
 					</section>
@@ -455,15 +507,25 @@
 				</section>
 
 				<section>
-					<p>
-						Geen <span class="euricom">databases</span> meer?
-					</p>
-					<ul>
-						<li class="fragment">Full text search</li>
-						<li class="fragment">Fuzzy/mistake tolerant</li>
-						<li class="fragment">Facets</li>
-						<li class="fragment">Boosting</li>
-					</ul>
+					<section>
+						<p>
+							Geen <span class="euricom">databases</span> meer?
+						</p>
+						<ul>
+							<li class="fragment">Full text search</li>
+							<li class="fragment">Fuzzy/mistake tolerant</li>
+							<li class="fragment">Facets</li>
+							<li class="fragment">Boosting</li>
+						</ul>
+					</section>
+					<section>
+						<p class="euricom">Nadelen</p>
+						<ul>
+							<li class="fragment">Memory consumption</li>
+							<li class="fragment">Distributed systems</li>
+							<li class="fragment">Unit testing</li>
+						</ul>
+					</section>
 				</section>
 
 				<section data-autoslide="1000">
